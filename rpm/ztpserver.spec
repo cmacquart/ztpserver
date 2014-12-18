@@ -51,13 +51,9 @@ BuildRequires: python2-devel
 Requires: python27
 Requires: python-virtualenv
 Requires: python27-python-virtualenv
-Requires: httpd24
-Requires: python27-mod_wsgi
 %else
 Requires: python >= 2.7
 Requires: python < 3
-Requires: httpd
-Requires: mod_wsgi
 %endif
 
 Requires(pre): shadow-utils
@@ -80,6 +76,21 @@ neighbor adjacencies. It is written mostly in Python and leverages standard
 protocols like DHCP and DHCP options for boot functions, HTTP for 
 bi-directional transport, and XMPP and syslog for logging. Most of the files 
 that the user interacts with are YAML based.
+
+%package apache-wsgi
+Summary: Apache wsgi conf for Arista ZTPServer
+Group:    Applications/Communications
+Requires: ztpzerver
+%if 0%{?rhel} == 6
+Requires: httpd24
+Requires: python27-mod_wsgi
+%else
+Requires: httpd
+Requires: mod_wsgi
+%endif
+
+%description apache-wsgi
+Installs an apache wsgi conf file in the Apache conf.d/ directory
 
 %prep
 %setup -q
@@ -131,22 +142,26 @@ exit 0
 %posttrans
 
 
+%post apache-wsgi
+chcon -Rv --type=httpd_sys_content_t %{_datadir}/ztpserver > /dev/null 2>&1
+
 %post
 # Ensure the server can read/write the necessary files.
 # ZTPServer operators may be put in to this group to allow them to configure the service
 chown -R %{app_user}:%{app_user} %{_datadir}/ztpserver
 chmod -R ug+rw %{_datadir}/ztpserver
-chcon -Rv --type=httpd_sys_content_t %{_datadir}/ztpserver
 
 %preun
 # $1 --> if 0, then it is a deinstall
 # $1 --> if 1, then it is an upgrade
 
-
 %postun
 # $1 --> if 0, then it is a deinstall
 # $1 --> if 1, then it is an upgrade
 
+%files apache-wsgi
+%defattr(-,root,root,)
+%config(noreplace) %{httpd_dir}/%{name}-wsgi.conf
 
 %files
 # all the files to be included in this RPM:
@@ -163,7 +178,6 @@ chcon -Rv --type=httpd_sys_content_t %{_datadir}/ztpserver
 %dir %{_sysconfdir}/ztpserver
 %config(noreplace) %{_sysconfdir}/ztpserver/ztpserver.conf
 %config(noreplace) %{_sysconfdir}/ztpserver/ztpserver.wsgi
-%config(noreplace) %{httpd_dir}/%{name}-wsgi.conf
 
 %defattr(0775,%{app_user},%{app_user},)
 %dir %{_datadir}/ztpserver
